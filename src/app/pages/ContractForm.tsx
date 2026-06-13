@@ -29,7 +29,7 @@ interface ContractFormData {
   installmentPeriod: 'daily' | 'weekly' | 'monthly';
   firstDueDate: string;
   interestRate: number;
-  lateFeeRate: number;
+  lateFeePerDay: number;
   description: string;
 }
 
@@ -42,7 +42,8 @@ export default function ContractForm() {
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ContractFormData>({
     defaultValues: {
-      lateFeeRate: 10,
+      lateFeePerDay: 30,
+      interestRate: 20,
       clientId: preselectedClientId || '',
       installmentPeriod: 'monthly',
     },
@@ -83,7 +84,7 @@ export default function ContractForm() {
       setValue('installmentPeriod', contractData.installmentPeriod || 'monthly');
       setValue('firstDueDate', contractData.firstDueDate.split('T')[0]);
       setValue('interestRate', contractData.interestRate);
-      setValue('lateFeeRate', contractData.lateFeeRate);
+      setValue('lateFeePerDay', contractData.lateFeePerDay ?? 30);
       setValue('description', contractData.description || '');
       setSelectedClientId(contractData.clientId);
       setSelectedPeriod(contractData.installmentPeriod || 'monthly');
@@ -116,7 +117,7 @@ export default function ContractForm() {
         installmentPeriod: data.installmentPeriod,
         firstDueDate: data.firstDueDate, // Data no formato YYYY-MM-DD
         interestRate: parseFloat(String(data.interestRate || 0)),
-        lateFeeRate: parseFloat(String(data.lateFeeRate || 0)),
+        lateFeePerDay: parseFloat(String(data.lateFeePerDay ?? 30)),
         description: data.description || '',
       };
 
@@ -173,12 +174,12 @@ export default function ContractForm() {
     if (!totalAmount || !installments || installments === 0) return;
 
     if (installmentValue && installmentValue > 0) {
-      // Calcular taxa de juros baseada no valor da parcela desejado
-      const totalToPay = installmentValue * installments;
-      const interestAmount = totalToPay - totalAmount;
-      const interestRate = (interestAmount / totalAmount) * 100;
-      
-      // Permite taxa negativa (quando parcela é menor que o valor sem juros)
+      // Modelo: parcela = (principal / N) + (principal × taxa)
+      // => taxa = (parcela / principal) - (1 / N)
+      const r = (installmentValue / totalAmount) - (1 / installments);
+      const interestRate = r * 100;
+
+      // Permite taxa negativa (quando parcela é menor que a amortização pura)
       setValue('interestRate', parseFloat(interestRate.toFixed(2)));
     }
   };
@@ -356,26 +357,29 @@ export default function ContractForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="interestRate">Taxa de Juros (% ao mês)</Label>
+                <Label htmlFor="interestRate">Taxa de Juros (% por período)</Label>
                 <Input
                   id="interestRate"
                   type="number"
                   step="0.01"
-                  {...register('interestRate')}                  
+                  {...register('interestRate')}
                 />
                 <p className="text-xs text-gray-500">
-                  Será calculada automaticamente se você informar o valor da parcela
+                  Juros aplicados a cada período (dia/semana/mês) sobre o valor emprestado. Padrão 20%.
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="lateFeeRate">Multa por Atraso (%)</Label>
+                <Label htmlFor="lateFeePerDay">Multa por dia de atraso (R$)</Label>
                 <Input
-                  id="lateFeeRate"
+                  id="lateFeePerDay"
                   type="number"
                   step="0.01"
-                  {...register('lateFeeRate')}                  
-               />
+                  {...register('lateFeePerDay')}
+                />
+                <p className="text-xs text-gray-500">
+                  Valor fixo cobrado por dia de atraso. Padrão R$ 30,00.
+                </p>
               </div>
             </div>
 

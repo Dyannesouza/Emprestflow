@@ -23,6 +23,7 @@ export default function ContractDetails() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentType, setPaymentType] = useState<'full' | 'interest_only'>('full');
 
   useEffect(() => {
     if (id) {
@@ -44,6 +45,51 @@ export default function ContractDetails() {
     }
   };
 
+  // Dias de atraso de uma parcela (0 se em dia)
+  const getDaysOverdue = (dueDate: string) => {
+    const due = new Date(String(dueDate).split('T')[0] + 'T12:00:00');
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const diff = Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
+  };
+
+  // Componentes financeiros de uma parcela (juros, amortização, multa de atraso)
+  const getInstallmentBreakdown = (installment: any) => {
+    if (!installment) {
+      return { full: 0, interest: 0, principal: 0, lateFee: 0, daysOverdue: 0 };
+    }
+    const lateFeePerDay = contract?.lateFeePerDay ?? 30;
+    const daysOverdue = getDaysOverdue(installment.dueDate);
+    const lateFee = daysOverdue * lateFeePerDay;
+    // Fallback caso a parcela seja de um contrato antigo sem os campos separados
+    const interest = installment.interestAmount ??
+      ((contract.totalAmount * ((contract.interestRate ?? 20) / 100)) / contract.installments);
+    const principal = installment.principalAmount ?? (installment.amount - interest);
+    return {
+      full: installment.amount,
+      interest: parseFloat(interest.toFixed(2)),
+      principal: parseFloat(principal.toFixed(2)),
+      lateFee,
+      daysOverdue,
+    };
+  };
+
+  const openPaymentDialog = (installment: any) => {
+    const bd = getInstallmentBreakdown(installment);
+    setPaymentType('full');
+    setPaymentAmount((bd.full + bd.lateFee).toFixed(2));
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setPaymentDialog({ open: true, installment });
+  };
+
+  const selectPaymentMode = (mode: 'full' | 'interest_only') => {
+    setPaymentType(mode);
+    const bd = getInstallmentBreakdown(paymentDialog.installment);
+    const base = mode === 'interest_only' ? bd.interest : bd.full;
+    setPaymentAmount((base + bd.lateFee).toFixed(2));
+  };
+
   const handlePayment = async () => {
     if (!paymentDialog.installment) return;
 
@@ -54,24 +100,29 @@ export default function ContractDetails() {
         body: JSON.stringify({
           amount: parseFloat(paymentAmount),
           paymentDate,
+          paymentType,
         }),
       });
 
-      toast.success('Pagamento registrado com sucesso!');
-      
+      toast.success(
+        paymentType === 'interest_only'
+          ? 'Juros recebidos! A dívida foi mantida e o vencimento renovado.'
+          : 'Pagamento registrado com sucesso!'
+      );
+
       // Show notification about financial transaction
       if (response.transactionId) {
         toast.success('💰 Receita adicionada ao Financeiro automaticamente!', {
           duration: 4000,
         });
       }
-      
+
       setPaymentDialog({ open: false, installment: null });
       await loadContract(); // Reload contract data
     } catch (error: any) {
       console.error('Payment error:', error);
       toast.error(error.message || 'Erro ao registrar pagamento');
-      
+
       // Close dialog and reload data even on error to sync state
       setPaymentDialog({ open: false, installment: null });
       await loadContract();
@@ -143,6 +194,8 @@ export default function ContractDetails() {
   const totalPending = contract.installmentsList
     .filter((i: any) => i.status !== 'paid')
     .reduce((sum: number, i: any) => sum + i.amount, 0);
+
+  const bd = paymentDialog.installment ? getInstallmentBreakdown(paymentDialog.installment) : null;
 
   return (
     <div className="space-y-6 max-w-full">
@@ -219,7 +272,7 @@ export default function ContractDetails() {
           </CardHeader>
           <CardContent>
             <div className="text-lg font-bold break-words">{contract.interestRate}%</div>
-            <p className="text-xs text-gray-600 mt-1">Multa: {contract.lateFeeRate}%</p>
+            <p className="text-xs text-gray-600 mt-1">Multa: {formatCurrency(contract.lateFeePerDay ?? 30)}/dia</p>
             <p className="text-xs text-gray-600 mt-1">
               Parcelas: {contract.installmentPeriod === 'daily' ? 'Diárias' : contract.installmentPeriod === 'weekly' ? 'Semanais' : 'Mensais'}
             </p>
@@ -278,10 +331,7 @@ export default function ContractDetails() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  setPaymentDialog({ open: true, installment });
-                                  setPaymentAmount(installment.amount.toFixed(2));
-                                }}
+                                onClick={() => openPaymentDialog(installment)}
                               >
                                 <DollarSign className="h-3 w-3 mr-1" />
                                 Pagar
@@ -305,17 +355,73 @@ export default function ContractDetails() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Registrar Pagamento</DialogTitle>
-            <DialogDescription>Insira os detalhes do pagamento para registrar.</DialogDescription>
+            <DialogDescription>
+              Parcela {paymentDialog.installment?.number} / {contract.installments}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Resumo financeiro da parcela */}
+            {bd && (
+              <div className="rounded-lg border bg-gray-50 p-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Amortização (principal)</span>
+                  <span className="font-medium">{formatCurrency(bd.principal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Juros do período ({contract.interestRate}%)</span>
+                  <span className="font-medium">{formatCurrency(bd.interest)}</span>
+                </div>
+                {bd.daysOverdue > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Multa de atraso ({bd.daysOverdue} {bd.daysOverdue === 1 ? 'dia' : 'dias'} × {formatCurrency(contract.lateFeePerDay ?? 30)})</span>
+                    <span className="font-medium">{formatCurrency(bd.lateFee)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-1 mt-1">
+                  <span className="font-semibold">Parcela completa</span>
+                  <span className="font-bold">{formatCurrency(bd.full + bd.lateFee)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Seleção do tipo de pagamento */}
             <div className="space-y-2">
-              <Label>Parcela</Label>
-              <p className="text-sm">
-                {paymentDialog.installment?.number} / {contract.installments}
-              </p>
+              <Label>Tipo de pagamento</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => selectPaymentMode('full')}
+                  className={`rounded-lg border-2 p-3 text-left transition-colors ${
+                    paymentType === 'full'
+                      ? 'border-emerald-600 bg-emerald-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="text-sm font-semibold">Parcela completa</p>
+                  <p className="text-xs text-gray-600">Amortiza a dívida</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectPaymentMode('interest_only')}
+                  className={`rounded-lg border-2 p-3 text-left transition-colors ${
+                    paymentType === 'interest_only'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="text-sm font-semibold">Somente juros</p>
+                  <p className="text-xs text-gray-600">Mantém a dívida, renova o vencimento</p>
+                </button>
+              </div>
+              {paymentType === 'interest_only' && (
+                <p className="text-xs text-amber-700 bg-amber-50 rounded p-2">
+                  ⚠️ O valor emprestado <strong>não será reduzido</strong>. O vencimento desta parcela será adiado em 1 período e os juros entram como receita.
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="paymentAmount">Valor Pago</Label>
+              <Label htmlFor="paymentAmount">Valor Recebido</Label>
               <Input
                 id="paymentAmount"
                 type="number"
@@ -335,7 +441,11 @@ export default function ContractDetails() {
             </div>
             <div className="flex gap-2">
               <Button onClick={handlePayment} disabled={paymentLoading}>
-                {paymentLoading ? 'Processando...' : 'Confirmar Pagamento'}
+                {paymentLoading
+                  ? 'Processando...'
+                  : paymentType === 'interest_only'
+                  ? 'Receber Juros'
+                  : 'Confirmar Pagamento'}
               </Button>
               <Button variant="outline" onClick={() => setPaymentDialog({ open: false, installment: null })}>
                 Cancelar

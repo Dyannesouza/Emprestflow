@@ -1352,14 +1352,15 @@ app.post("/make-server-bd42bc02/contracts", requireAuth, async (c) => {
     }
 
     const contractId = generateId('contract');
-    
-    // Calculate installment amount with SIMPLE interest (not compound/Price Table)
-    // Formula: Total with interest = totalAmount * (1 + interestRate/100)
-    // Installment = (totalAmount with interest) / number of installments
-    const rate = (interestRate || 20) / 100; // Convert percentage to decimal
-    const totalWithInterest = totalAmount * (1 + rate);
-    const installmentAmount = totalWithInterest / installments;
-    
+
+    // Interest applied PER PERIOD over the borrowed principal (not compounded over balance).
+    // Each installment = principal amortization + interest for the period.
+    // Ex: R$1000, 20%, 10 parcelas => juros R$200 + amortização R$100 = parcela R$300.
+    const rate = (interestRate ?? 20) / 100; // 20% per period by default
+    const interestPerInstallment = totalAmount * rate;          // fixed interest each period
+    const principalPerInstallment = totalAmount / installments; // amortization
+    const installmentAmount = principalPerInstallment + interestPerInstallment;
+
     // Helper function to calculate next due date based on period
     function calculateNextDueDate(startDate: Date, index: number, period: string): Date {
       const nextDate = new Date(startDate);
@@ -1396,10 +1397,13 @@ app.post("/make-server-bd42bc02/contracts", requireAuth, async (c) => {
       installmentsList.push({
         number: i + 1,
         amount: parseFloat(installmentAmount.toFixed(2)),
+        principalAmount: parseFloat(principalPerInstallment.toFixed(2)),
+        interestAmount: parseFloat(interestPerInstallment.toFixed(2)),
         dueDate: formattedDueDate,
         status: 'pending',
         paidAt: null,
         paidAmount: null,
+        interestPaidCount: 0,
       });
     }
 
@@ -1411,8 +1415,8 @@ app.post("/make-server-bd42bc02/contracts", requireAuth, async (c) => {
       installmentPeriod: period,
       installmentAmount: parseFloat(installmentAmount.toFixed(2)),
       firstDueDate,
-      interestRate: interestRate || 20,
-      lateFeeRate: lateFeeRate || 10,
+      interestRate: interestRate ?? 20,
+      lateFeePerDay: body.lateFeePerDay ?? 30,
       description,
       status: 'active',
       installmentsList,
@@ -1476,14 +1480,15 @@ app.put("/make-server-bd42bc02/contracts/:id", requireAuth, async (c) => {
     contract.installmentPeriod = installmentPeriod || contract.installmentPeriod || 'monthly';
     contract.firstDueDate = firstDueDate || contract.firstDueDate;
     contract.interestRate = interestRate !== undefined ? interestRate : contract.interestRate;
-    contract.lateFeeRate = lateFeeRate !== undefined ? lateFeeRate : contract.lateFeeRate;
+    contract.lateFeePerDay = body.lateFeePerDay !== undefined ? body.lateFeePerDay : (contract.lateFeePerDay ?? 30);
     contract.description = description !== undefined ? description : contract.description;
     contract.updatedAt = new Date().toISOString();
     
-    // Calculate installment amount with SIMPLE interest (not compound/Price Table)
+    // Interest applied PER PERIOD over the borrowed principal (same model as creation).
     const rate = contract.interestRate / 100;
-    const totalWithInterest = contract.totalAmount * (1 + rate);
-    contract.installmentAmount = totalWithInterest / contract.installments;
+    const interestPerInstallment = contract.totalAmount * rate;
+    const principalPerInstallment = contract.totalAmount / contract.installments;
+    contract.installmentAmount = principalPerInstallment + interestPerInstallment;
     
     // Helper function to calculate next due date based on period
     function calculateNextDueDate(startDate: Date, index: number, period: string): Date {
@@ -1530,9 +1535,12 @@ app.put("/make-server-bd42bc02/contracts/:id", requireAuth, async (c) => {
           number: i + 1,
           dueDate: formattedDueDate,
           amount: parseFloat(contract.installmentAmount.toFixed(2)),
+          principalAmount: parseFloat(principalPerInstallment.toFixed(2)),
+          interestAmount: parseFloat(interestPerInstallment.toFixed(2)),
           status: 'pending',
           paidAt: null,
           paidAmount: null,
+          interestPaidCount: 0,
         });
       }
     }
@@ -1662,7 +1670,8 @@ app.post("/make-server-bd42bc02/contracts/:id/installments/:number/pay", require
     const contractId = c.req.param('id');
     const installmentNumber = parseInt(c.req.param('number'));
     const body = await c.req.json();
-    const { amount, paymentDate } = body;
+    // paymentType: 'full' (quita a parcela, amortiza) | 'interest_only' (paga só os juros, rola o período)
+    const { amount, paymentDate, paymentType = 'full' } = body;
 
     const contractData = await kv.get(`contract:${contractId}`);
     if (!contractData) {
@@ -1680,9 +1689,40 @@ app.post("/make-server-bd42bc02/contracts/:id/installments/:number/pay", require
       return c.json({ error: 'Esta parcela já foi paga anteriormente' }, 400);
     }
 
-    installment.status = 'paid';
-    installment.paidAt = paymentDate || new Date().toISOString();
-    installment.paidAmount = amount;
+    // Helper: advance a YYYY-MM-DDT12:00:00 date by one period (UTC, noon, timezone-safe)
+    const advanceOnePeriod = (dateStr: string, period: string): string => {
+      const dateOnly = String(dateStr).split('T')[0];
+      const [y, m, d] = dateOnly.split('-').map((n: string) => parseInt(n));
+      const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      if (period === 'daily') dt.setUTCDate(dt.getUTCDate() + 1);
+      else if (period === 'weekly') dt.setUTCDate(dt.getUTCDate() + 7);
+      else dt.setUTCMonth(dt.getUTCMonth() + 1);
+      return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}T12:00:00`;
+    };
+
+    const isInterestOnly = paymentType === 'interest_only';
+    const period = contract.installmentPeriod || 'monthly';
+
+    // Default interest portion: stored on the installment, or principal × rate as fallback
+    const fallbackInterest = (contract.totalAmount * ((contract.interestRate ?? 20) / 100)) / contract.installments;
+    const interestPortion = installment.interestAmount ?? parseFloat(fallbackInterest.toFixed(2));
+
+    // Amount actually received in this transaction
+    const receivedAmount = amount !== undefined && amount !== null
+      ? parseFloat(amount)
+      : (isInterestOnly ? interestPortion : installment.amount);
+
+    if (isInterestOnly) {
+      // Pay only the interest: principal (dívida) stays the same, roll the due date forward
+      installment.interestPaidCount = (installment.interestPaidCount || 0) + 1;
+      installment.lastInterestPaidAt = paymentDate || new Date().toISOString();
+      installment.dueDate = advanceOnePeriod(installment.dueDate, period);
+      // status stays 'pending' — the installment is not settled, only its interest was paid
+    } else {
+      installment.status = 'paid';
+      installment.paidAt = paymentDate || new Date().toISOString();
+      installment.paidAmount = receivedAmount;
+    }
 
     contract.updatedAt = new Date().toISOString();
     await kv.set(`contract:${contractId}`, JSON.stringify(contract));
@@ -1693,19 +1733,24 @@ app.post("/make-server-bd42bc02/contracts/:id/installments/:number/pay", require
 
     // Create financial transaction automatically
     const transactionId = generateId('transaction');
+    const description = isInterestOnly
+      ? `Juros (rolagem) parcela ${installmentNumber}/${contract.installments} - Contrato ${contractId}`
+      : `Parcela ${installmentNumber}/${contract.installments} - Contrato ${contractId}`;
     const transaction = {
       id: transactionId,
       type: 'income',
-      category: 'Pagamento de Contrato',
-      description: `Parcela ${installmentNumber}/${contract.installments} - Contrato ${contractId}`,
-      amount: parseFloat(amount),
+      category: isInterestOnly ? 'Juros de Contrato' : 'Pagamento de Contrato',
+      description,
+      amount: receivedAmount,
       date: paymentDate || new Date().toISOString(),
       paymentMethod: 'Não especificado',
       status: 'paid',
       clientId: contract.clientId,
       clientName: client ? client.fullName : 'Cliente não identificado',
       contractId: contractId,
-      notes: `Pagamento automático da parcela ${installmentNumber} do contrato ${contractId}`,
+      notes: isInterestOnly
+        ? `Pagamento somente dos juros da parcela ${installmentNumber} (dívida mantida) do contrato ${contractId}`
+        : `Pagamento automático da parcela ${installmentNumber} do contrato ${contractId}`,
       createdAt: new Date().toISOString(),
       createdBy: user.id,
       updatedAt: new Date().toISOString(),
@@ -1715,10 +1760,10 @@ app.post("/make-server-bd42bc02/contracts/:id/installments/:number/pay", require
 
     await logAudit({
       userId: user.id,
-      action: 'INSTALLMENT_PAID',
+      action: isInterestOnly ? 'INSTALLMENT_INTEREST_PAID' : 'INSTALLMENT_PAID',
       resource: `contract:${contractId}`,
       ip: c.req.header('x-forwarded-for') || 'unknown',
-      metadata: { installmentNumber, amount, transactionId }
+      metadata: { installmentNumber, amount: receivedAmount, paymentType, transactionId }
     });
 
     // Audit log for financial transaction
@@ -1727,16 +1772,16 @@ app.post("/make-server-bd42bc02/contracts/:id/installments/:number/pay", require
       action: 'TRANSACTION_CREATED',
       resource: `transaction:${transactionId}`,
       ip: c.req.header('x-forwarded-for') || 'unknown',
-      metadata: { 
+      metadata: {
         type: 'income',
-        category: 'Pagamento de Contrato',
-        amount: parseFloat(amount),
+        category: transaction.category,
+        amount: receivedAmount,
         installmentNumber,
-        contractId 
+        contractId
       }
     });
 
-    return c.json({ success: true, installment, transactionId });
+    return c.json({ success: true, installment, transactionId, paymentType });
   } catch (error) {
     console.error('[PAYMENT] Error:', error);
     return c.json({ error: 'Error processing payment' }, 500);
