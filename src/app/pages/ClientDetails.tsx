@@ -295,42 +295,31 @@ export default function ClientDetails() {
           {/* Fotos */}
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              📷 Fotos (4 obrigatórias + 2 opcionais)
+              📷 Fotos (1 obrigatória + 1 opcional)
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {['foto1', 'foto2', 'foto3', 'foto4', 'foto5', 'foto6'].map((type, index) => {
-                const isRequired = index < 4;
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {['foto1', 'foto2'].map((type, index) => {
+                const isRequired = index === 0;
                 const document = client.documents?.[type];
-                
+
                 // Handle both object format and legacy string format
                 const isObject = document && typeof document === 'object';
                 const isString = document && typeof document === 'string';
                 const hasDocument = isObject ? (document.url || document.path) : isString;
                 const documentUrl = isObject ? (document.url || document.path) : document;
-                
-                // 🔥 Count total photos uploaded
-                const totalPhotos = ['foto1', 'foto2', 'foto3', 'foto4', 'foto5', 'foto6'].filter(t => {
-                  const doc = client.documents?.[t];
-                  const isObj = doc && typeof doc === 'object';
-                  const isStr = doc && typeof doc === 'string';
-                  return isObj ? (doc.url || doc.path) : isStr;
-                }).length;
-                
-                const hasRequiredPhotos = totalPhotos >= 4;
-                const showRedBackground = !hasDocument && isRequired && !hasRequiredPhotos;
-                
+
                 return (
                   <div
                     key={type}
-                    className={`p-3 border rounded-lg text-center ${
+                    className={`p-4 border rounded-lg text-center ${
                       hasDocument
                         ? 'border-green-500 bg-green-50'
-                        : showRedBackground
+                        : isRequired
                         ? 'border-red-300 bg-red-50'
                         : 'border-gray-300 bg-gray-50'
                     }`}
                   >
-                    <p className="text-xs font-medium">
+                    <p className="text-sm font-medium">
                       Foto {index + 1}
                       {!isRequired && <span className="text-gray-500"> (opcional)</span>}
                     </p>
@@ -338,7 +327,7 @@ export default function ClientDetails() {
                       {hasDocument ? (
                         <span className="text-green-600 font-semibold">✓ Enviada</span>
                       ) : (
-                        <span className={isRequired && !hasRequiredPhotos ? 'text-red-600' : 'text-gray-500'}>
+                        <span className={isRequired ? 'text-red-600' : 'text-gray-500'}>
                           ✗ {isRequired ? 'Obrigatória' : 'Não enviada'}
                         </span>
                       )}
@@ -348,7 +337,7 @@ export default function ClientDetails() {
                         href={documentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-block mt-2 text-xs text-blue-600 hover:text-blue-800 underline font-medium"
+                        className="inline-block mt-2 text-sm text-blue-600 hover:text-blue-800 underline font-medium"
                       >
                         Ver foto
                       </a>
@@ -364,14 +353,14 @@ export default function ClientDetails() {
             </div>
           </div>
 
-          {/* Vdeos */}
+          {/* Vídeos */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              🎥 Vídeos (1 obrigatório + 1 opcional)
+              🎥 Vídeos (opcionais)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {['video1', 'video2'].map((type, index) => {
-                const isRequired = index === 0;
+              {['video1', 'video2', 'video3', 'video4'].map((type, index) => {
+                const isRequired = false;
                 const document = client.documents?.[type];
                 
                 // Handle both object format and legacy string format

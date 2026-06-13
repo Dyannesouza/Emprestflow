@@ -32,7 +32,7 @@ interface DocumentFile {
   preview: string;
 }
 
-type DocumentType = 'front' | 'back' | 'selfie' | 'video';
+type DocumentType = 'foto1' | 'foto2' | 'video1' | 'video2' | 'video3' | 'video4';
 
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-bd42bc02`;
 
@@ -101,10 +101,12 @@ export default function PublicRegistration() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [documents, setDocuments] = useState<Record<DocumentType, DocumentFile | null>>({
-    front: null,
-    back: null,
-    selfie: null,
-    video: null,
+    foto1: null,
+    foto2: null,
+    video1: null,
+    video2: null,
+    video3: null,
+    video4: null,
   });
 
   const lgpdConsent = watch('lgpdConsent');
@@ -124,9 +126,7 @@ export default function PublicRegistration() {
     }
 
     const requiredDocs: { type: DocumentType; label: string }[] = [
-      { type: 'front', label: 'RG (Frente)' },
-      { type: 'back', label: 'RG (Verso)' },
-      { type: 'selfie', label: 'Selfie com documento' },
+      { type: 'foto1', label: 'Foto 1' },
     ];
 
     for (const doc of requiredDocs) {
@@ -416,57 +416,63 @@ export default function PublicRegistration() {
                 Documentos
               </CardTitle>
               <CardDescription>
-                Envie fotos legíveis dos seus documentos. Os itens marcados com * são obrigatórios.
+                Envie pelo menos a Foto 1 (obrigatória). As demais fotos e vídeos são opcionais.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>📄 RG (Frente) *</Label>
-                  <FileUploadPreview
-                    id="doc-front"
-                    type="image"
-                    onUpload={setDocument('front')}
-                    onRemove={removeDocument('front')}
-                    file={documents.front?.file}
-                    preview={documents.front?.preview}
-                  />
-                </div>
+              {/* Fotos */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700">📷 Fotos</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Foto 1 *</Label>
+                    <FileUploadPreview
+                      id="doc-foto1"
+                      type="image"
+                      onUpload={setDocument('foto1')}
+                      onRemove={removeDocument('foto1')}
+                      file={documents.foto1?.file}
+                      preview={documents.foto1?.preview}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>📄 RG (Verso) *</Label>
-                  <FileUploadPreview
-                    id="doc-back"
-                    type="image"
-                    onUpload={setDocument('back')}
-                    onRemove={removeDocument('back')}
-                    file={documents.back?.file}
-                    preview={documents.back?.preview}
-                  />
+                  <div className="space-y-2">
+                    <Label>
+                      Foto 2 <span className="text-gray-500 text-xs">(opcional)</span>
+                    </Label>
+                    <FileUploadPreview
+                      id="doc-foto2"
+                      type="image"
+                      onUpload={setDocument('foto2')}
+                      onRemove={removeDocument('foto2')}
+                      file={documents.foto2?.file}
+                      preview={documents.foto2?.preview}
+                    />
+                  </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label>🤳 Selfie com documento *</Label>
-                  <FileUploadPreview
-                    id="doc-selfie"
-                    type="image"
-                    onUpload={setDocument('selfie')}
-                    onRemove={removeDocument('selfie')}
-                    file={documents.selfie?.file}
-                    preview={documents.selfie?.preview}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>🎥 Vídeo de confirmação (opcional)</Label>
-                  <FileUploadPreview
-                    id="doc-video"
-                    type="video"
-                    onUpload={setDocument('video')}
-                    onRemove={removeDocument('video')}
-                    file={documents.video?.file}
-                    preview={documents.video?.preview}
-                  />
+              {/* Vídeos */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  🎥 Vídeos <span className="text-gray-500 text-xs font-normal">(opcionais)</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(['video1', 'video2', 'video3', 'video4'] as DocumentType[]).map((vtype, i) => (
+                    <div key={vtype} className="space-y-2">
+                      <Label>
+                        Vídeo {i + 1} <span className="text-gray-500 text-xs">(opcional)</span>
+                      </Label>
+                      <FileUploadPreview
+                        id={`doc-${vtype}`}
+                        type="video"
+                        onUpload={setDocument(vtype)}
+                        onRemove={removeDocument(vtype)}
+                        file={documents[vtype]?.file}
+                        preview={documents[vtype]?.preview}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>

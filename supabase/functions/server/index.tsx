@@ -2470,7 +2470,7 @@ app.post("/make-server-bd42bc02/public/register", async (c) => {
       source: 'public_form',
       lgpdConsent: true,
       lgpdConsentDate: new Date().toISOString(),
-      documents: { front: null, back: null, selfie: null, video: null },
+      documents: { foto1: null, foto2: null, video1: null, video2: null, video3: null, video4: null },
       uploadToken,
       uploadTokenExpiresAt,
       createdAt: new Date().toISOString(),
@@ -2515,7 +2515,7 @@ app.post("/make-server-bd42bc02/public/register/:id/documents", async (c) => {
       return c.json({ error: 'Campos obrigatórios faltando' }, 400);
     }
 
-    if (!['front', 'back', 'selfie', 'video'].includes(documentType)) {
+    if (!['foto1', 'foto2', 'video1', 'video2', 'video3', 'video4'].includes(documentType)) {
       return c.json({ error: 'Tipo de documento inválido' }, 400);
     }
 
