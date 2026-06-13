@@ -460,7 +460,7 @@ export default function Dashboard() {
             </Link>
 
             <Link
-              to="/quick-loan"
+              to="/contracts/new"
               className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-emerald-500 hover:bg-emerald-50 transition-colors text-center"
             >
               <DollarSign className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
