@@ -29,6 +29,7 @@ interface ContractFormData {
   installmentPeriod: 'daily' | 'weekly' | 'monthly';
   firstDueDate: string;
   interestRate: number;
+  installmentValue: number; // valor de cada parcela (apenas UI — sincronizado com a taxa)
   lateFeePerDay: number;
   description: string;
 }
@@ -40,7 +41,7 @@ export default function ContractForm() {
   const preselectedClientId = searchParams.get('clientId');
   const isEditMode = !!id;
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ContractFormData>({
+  const { register, handleSubmit, setValue, watch, getValues, formState: { errors } } = useForm<ContractFormData>({
     defaultValues: {
       lateFeePerDay: 30,
       interestRate: 20,
@@ -84,6 +85,7 @@ export default function ContractForm() {
       setValue('installmentPeriod', contractData.installmentPeriod || 'monthly');
       setValue('firstDueDate', contractData.firstDueDate.split('T')[0]);
       setValue('interestRate', contractData.interestRate);
+      setValue('installmentValue', parseFloat(Number(contractData.installmentAmount || 0).toFixed(2)));
       setValue('lateFeePerDay', contractData.lateFeePerDay ?? 30);
       setValue('description', contractData.description || '');
       setSelectedClientId(contractData.clientId);
@@ -166,23 +168,46 @@ export default function ContractForm() {
     }
   };
 
-  // Função para calcular taxa de juros baseada no valor da parcela
-  const calculateInterestFromInstallment = (installmentValue?: number) => {
-    const totalAmount = parseFloat(watch('totalAmount') || '0');
-    const installments = parseInt(watch('installments') || '0');
-    
-    if (!totalAmount || !installments || installments === 0) return;
+  // Modelo: parcela = (principal / N) + (principal × taxa)
+  // total = principal × (1 + N × taxa)
 
-    if (installmentValue && installmentValue > 0) {
-      // Modelo: parcela = (principal / N) + (principal × taxa)
-      // => taxa = (parcela / principal) - (1 / N)
-      const r = (installmentValue / totalAmount) - (1 / installments);
-      const interestRate = r * 100;
+  // total + parcelas + juros  =>  valor da parcela
+  const recalcInstallmentFromInterest = () => {
+    const totalAmount = parseFloat(String(getValues('totalAmount')) || '0');
+    const installments = parseInt(String(getValues('installments')) || '0');
+    const rate = parseFloat(String(getValues('interestRate')) || '0');
 
-      // Permite taxa negativa (quando parcela é menor que a amortização pura)
-      setValue('interestRate', parseFloat(interestRate.toFixed(2)));
-    }
+    if (!totalAmount || !installments || installments <= 0) return;
+
+    const installmentValue = (totalAmount / installments) + (totalAmount * (rate / 100));
+    setValue('installmentValue', parseFloat(installmentValue.toFixed(2)));
   };
+
+  // total + parcelas + valor da parcela  =>  juros
+  const recalcInterestFromInstallment = () => {
+    const totalAmount = parseFloat(String(getValues('totalAmount')) || '0');
+    const installments = parseInt(String(getValues('installments')) || '0');
+    const installmentValue = parseFloat(String(getValues('installmentValue')) || '0');
+
+    if (!totalAmount || !installments || installments <= 0 || !installmentValue) return;
+
+    const rate = ((installmentValue / totalAmount) - (1 / installments)) * 100;
+    setValue('interestRate', parseFloat(rate.toFixed(2)));
+  };
+
+  // Valores derivados para o resumo (recalculados a cada render)
+  const summaryTotal = parseFloat(String(watch('totalAmount')) || '0');
+  const summaryInstallments = parseInt(String(watch('installments')) || '0');
+  const summaryRate = parseFloat(String(watch('interestRate')) || '0');
+  const summaryInstallmentValue =
+    summaryTotal && summaryInstallments > 0
+      ? (summaryTotal / summaryInstallments) + (summaryTotal * (summaryRate / 100))
+      : 0;
+  const summaryTotalToPay = summaryInstallmentValue * summaryInstallments;
+  const summaryInterestPerInstallment = summaryTotal * (summaryRate / 100);
+
+  const formatBRL = (v: number) =>
+    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   if (loadingData) {
     return (
@@ -271,9 +296,9 @@ export default function ContractForm() {
                     required: 'Campo obrigatório',
                     min: { value: 0, message: 'Valor deve ser positivo' },
                   })}
-                    onChange={(e) => {
+                  onChange={(e) => {
                     register('totalAmount').onChange(e);
-                    calculateInterestFromInstallment();
+                    recalcInstallmentFromInterest();
                   }}
                 />
                 {errors.totalAmount && (
@@ -290,9 +315,9 @@ export default function ContractForm() {
                     required: 'Campo obrigatório',
                     min: { value: 1, message: 'Mínimo 1 parcela' },
                   })}
-                    onChange={(e) => {
+                  onChange={(e) => {
                     register('installments').onChange(e);
-                    calculateInterestFromInstallment();
+                    recalcInstallmentFromInterest();
                   }}
                 />
                 {errors.installments && (
@@ -324,23 +349,19 @@ export default function ContractForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="installmentValue" className="flex items-center gap-2">
-                  Valor da Parcela Desejado
-                  <span className="text-xs text-gray-500">(Opcional)</span>
-                </Label>
+                <Label htmlFor="installmentValue">Valor de Cada Parcela</Label>
                 <Input
                   id="installmentValue"
                   type="number"
                   step="0.01"
+                  {...register('installmentValue')}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (value) {
-                      calculateInterestFromInstallment(parseFloat(value));
-                    }
+                    register('installmentValue').onChange(e);
+                    recalcInterestFromInstallment();
                   }}
                 />
                 <p className="text-xs text-blue-600">
-                  💡 Digite o valor desejado da parcela e a taxa de juros será calculada automaticamente
+                  💡 Calculado automaticamente a partir dos juros. Se você editar aqui, a taxa de juros é recalculada.
                 </p>
               </div>
 
@@ -363,6 +384,10 @@ export default function ContractForm() {
                   type="number"
                   step="0.01"
                   {...register('interestRate')}
+                  onChange={(e) => {
+                    register('interestRate').onChange(e);
+                    recalcInstallmentFromInterest();
+                  }}
                 />
                 <p className="text-xs text-gray-500">
                   Juros aplicados a cada período (dia/semana/mês) sobre o valor emprestado. Padrão 20%.
@@ -382,6 +407,30 @@ export default function ContractForm() {
                 </p>
               </div>
             </div>
+
+            {/* Resumo do cálculo */}
+            {summaryTotal > 0 && summaryInstallments > 0 && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm space-y-1">
+                <p className="font-semibold text-emerald-900">Resumo do contrato</p>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">{summaryInstallments}x de</span>
+                  <span className="font-bold">{formatBRL(summaryInstallmentValue)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Juros por parcela ({summaryRate}%)</span>
+                  <span>{formatBRL(summaryInterestPerInstallment)}</span>
+                </div>
+                <div className="flex justify-between border-t border-emerald-200 pt-1 mt-1">
+                  <span className="font-semibold text-emerald-900">Total a receber</span>
+                  <span className="font-bold text-emerald-900">{formatBRL(summaryTotalToPay)}</span>
+                </div>
+                {summaryInstallmentValue < (summaryTotal / summaryInstallments) && (
+                  <p className="text-xs text-red-600 pt-1">
+                    ⚠️ A parcela está menor que a amortização — a taxa de juros ficou negativa. Revise os valores.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="description">Descrição</Label>
