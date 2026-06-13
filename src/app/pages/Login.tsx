@@ -21,7 +21,6 @@ export default function Login() {
   const [accessCode, setAccessCode] = useState(''); // Security code for admin signup
   const [showAccessCode, setShowAccessCode] = useState(false); // Toggle visibility
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isClientLogin, setIsClientLogin] = useState(true); // 🔐 Portal do Cliente como padrão
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState('');
@@ -47,12 +46,7 @@ export default function Login() {
   useEffect(() => {
     if (!authLoading && user && !redirectedRef.current) {
       redirectedRef.current = true;
-      // Redirect based on user role
-      if (user.role === 'client') {
-        navigate('/client-portal', { replace: true });
-      } else {
-        navigate('/', { replace: true });
-      }
+      navigate('/', { replace: true });
     }
   }, [user, authLoading, navigate]);
 
@@ -98,15 +92,14 @@ export default function Login() {
     try {
       if (isSignUp) {
         // Validate access code for admin signup
-        if (!isClientLogin && !accessCode) {
+        if (!accessCode) {
           setError('O código de acesso é obrigatório para criar conta de administrador.');
           toast.error('Por favor, informe o código de acesso fornecido pela empresa.');
           setLoading(false);
           return;
         }
 
-        // Pass 'client' role if user is registering in client mode
-        const role = isClientLogin ? 'client' : 'admin';
+        const role = 'admin';
         await signUp(email, password, name, role, accessCode);
         toast.success('Conta criada com sucesso!');
       } else {
@@ -182,48 +175,15 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          {/* Toggle between Admin and Client Login */}
-          <div className="mb-4 flex gap-2 p-1 bg-gray-100 rounded-lg">
-            <button
-              type="button"
-              onClick={() => setIsClientLogin(false)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                !isClientLogin
-                  ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              👤 Administrador
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsClientLogin(true)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                isClientLogin
-                  ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              🔐 Portal do Cliente
-            </button>
-          </div>
-
-          {/* Show default admin credentials when in login mode */}
-          {!isSignUp && !isClientLogin && (
-            null
-          )}
-
           {/* Show registration mode when signing up */}
           {isSignUp && (
             <Alert className="mb-4 bg-emerald-50 border-emerald-300">
               <AlertDescription className="text-xs">
                 <div className="font-semibold mb-1 text-emerald-900">
-                  {isClientLogin ? '👥 Cadastro de Cliente' : '⚙️ Cadastro de Administrador'}
+                  ⚙️ Cadastro de Administrador
                 </div>
                 <div className="text-emerald-700">
-                  {isClientLogin
-                    ? 'Você está criando uma conta de cliente com acesso restrito aos seus próprios dados.'
-                    : 'Você está criando uma conta de administrador com acesso total ao sistema.'}
+                  Você está criando uma conta de administrador com acesso total ao sistema.
                 </div>
               </AlertDescription>
             </Alert>
@@ -325,7 +285,7 @@ export default function Login() {
               )}
             </div>
 
-            {isSignUp && !isClientLogin && (
+            {isSignUp && (
               <div className="space-y-2">
                 <Label htmlFor="accessCode" className="flex items-center justify-between">
                   <span>Código de Acesso</span>

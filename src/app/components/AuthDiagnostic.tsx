@@ -21,7 +21,6 @@ interface DiagnosticResult {
 export function AuthDiagnostic() {
   const [result, setResult] = useState<DiagnosticResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [creatingClient, setCreatingClient] = useState(false);
   const [creatingAdmin, setCreatingAdmin] = useState(false);
   const [fixingProfiles, setFixingProfiles] = useState(false);
 
@@ -217,34 +216,6 @@ export function AuthDiagnostic() {
     }
   };
 
-  const createTestClient = async () => {
-    setCreatingClient(true);
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-bd42bc02/create-test-client`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`
-          }
-        }
-      );
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        alert(`✅ Cliente de teste criado!\n\nEmail: ${data.credentials.email}\nSenha: ${data.credentials.password}\n\nAgora você pode fazer login como cliente!`);
-      } else {
-        alert(`❌ Erro ao criar cliente:\n${data.error}`);
-      }
-    } catch (error) {
-      alert(`❌ Erro:\n${error}`);
-    } finally {
-      setCreatingClient(false);
-    }
-  };
-
   const createTestAdmin = async () => {
     setCreatingAdmin(true);
     try {
@@ -317,15 +288,6 @@ export function AuthDiagnostic() {
           className="w-full mb-4"
         >
           {loading ? 'Executando diagnóstico...' : '🔍 Executar Diagnóstico'}
-        </Button>
-
-        <Button
-          onClick={createTestClient}
-          disabled={creatingClient}
-          variant="outline"
-          className="w-full mb-4"
-        >
-          {creatingClient ? 'Criando cliente...' : '👤 Criar Cliente de Teste'}
         </Button>
 
         <Button

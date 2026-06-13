@@ -5,7 +5,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 
 export default function Root() {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -17,13 +17,13 @@ export default function Root() {
       redirectedRef.current = true;
       navigate('/login', { replace: true });
     }
-    
-    // If user is a client, redirect to client portal
+
+    // Client accounts no longer have access to the system
     if (!loading && user && user.role === 'client' && !redirectedRef.current) {
       redirectedRef.current = true;
-      navigate('/client-portal', { replace: true });
+      signOut().finally(() => navigate('/login', { replace: true }));
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, signOut]);
 
   // Close sidebar when route changes (mobile)
   useEffect(() => {

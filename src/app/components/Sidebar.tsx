@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { Home, Users, FileText, Shield, DollarSign, MessageSquare, X, UserCog, KeyRound } from 'lucide-react';
+import { Home, Users, FileText, Shield, DollarSign, MessageSquare, X, UserCog, KeyRound, Calendar } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 
 interface SidebarProps {
@@ -16,6 +16,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: 'Clientes', href: '/clients', icon: Users },
     { name: 'Contratos', href: '/contracts', icon: FileText },
     { name: 'Financeiro', href: '/financial', icon: DollarSign },
+    { name: '📅 Cobranças', href: '/automatic-billing', icon: Calendar },
     { name: 'Whatsapp', href: '/reminders', icon:  MessageSquare},
     { name: '🔑 Alterar Senha', href: '/change-password', icon: KeyRound },
     ...(user?.role === 'admin' ? [

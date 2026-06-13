@@ -13,12 +13,9 @@ import Financial from "./pages/Financial";
 import TransactionForm from "./pages/TransactionForm";
 import TransactionDetails from "./pages/TransactionDetails";
 import NotFound from "./pages/NotFound";
-import ClientPortal from "./pages/ClientPortal";
-import ClientPortalLogin from "./pages/ClientPortalLogin";
-import ClientPortalSignup from "./pages/ClientPortalSignup";
-import ClientPortalDashboard from "./pages/ClientPortalDashboard";
-import ClientPortalFirstAccess from "./pages/ClientPortalFirstAccess";
 import DueReminders from "./pages/DueReminders";
+import BillingCalendar from "./pages/BillingCalendar";
+import PublicRegistration from "./pages/PublicRegistration";
 import Security from "./pages/Security";
 import Users from "./pages/Users";
 import ChangePassword from "./pages/ChangePassword";
@@ -37,27 +34,6 @@ export const router = createBrowserRouter([
         Component: AuthDebug,
       },
       {
-        path: "/client-portal",
-        Component: ClientPortal,
-      },
-      // Client Portal Routes (all need auth context)
-      {
-        path: "/client-portal/login",
-        Component: ClientPortalLogin,
-      },
-      {
-        path: "/client-portal/signup",
-        Component: ClientPortalSignup,
-      },
-      {
-        path: "/client-portal/dashboard",
-        Component: ClientPortalDashboard,
-      },
-      {
-        path: "/client-portal/first-access",
-        Component: ClientPortalFirstAccess,
-      },
-      {
         path: "/",
         Component: Root,
         children: [
@@ -74,6 +50,7 @@ export const router = createBrowserRouter([
           { path: "financial/transactions/new", Component: TransactionForm },
           { path: "financial/transactions/:id/edit", Component: TransactionForm },
           { path: "financial/transactions/:id", Component: TransactionDetails },
+          { path: "automatic-billing", Component: BillingCalendar },
           { path: "reminders", Component: DueReminders },
           { path: "security", Component: Security },
           { path: "users", Component: Users },
@@ -82,5 +59,10 @@ export const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  // Public routes (no auth required)
+  {
+    path: "/cadastro",
+    Component: PublicRegistration,
   },
 ]);

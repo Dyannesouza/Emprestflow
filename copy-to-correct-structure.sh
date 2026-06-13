@@ -12,7 +12,6 @@ mkdir -p supabase/functions/make-server-bd42bc02
 echo "📦 Copiando arquivos..."
 cp supabase/functions/server/index.tsx supabase/functions/make-server-bd42bc02/index.ts
 cp supabase/functions/server/kv_store.tsx supabase/functions/make-server-bd42bc02/kv_store.tsx
-cp supabase/functions/server/client_portal_routes.tsx supabase/functions/make-server-bd42bc02/client_portal_routes.tsx
 cp supabase/functions/server/billing_routes.tsx supabase/functions/make-server-bd42bc02/billing_routes.tsx
 cp supabase/functions/server/health.tsx supabase/functions/make-server-bd42bc02/health.tsx
 
