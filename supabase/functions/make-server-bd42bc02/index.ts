@@ -341,65 +341,12 @@ async function initializeStorage() {
 initializeStorage();
 
 // ============================================
-// INITIALIZE DEFAULT ADMIN USER
+// INITIALIZE DEFAULT ADMIN USER — REMOVIDO POR SEGURANÇA
 // ============================================
-async function initializeDefaultAdmin() {
-  try {
-    console.log('[INIT] Checking for default admin user...');
-    
-    const defaultEmail = 'admin@empresa.com';
-    const defaultPassword = 'Admin@123456';
-    
-    // Check if admin already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const adminExists = existingUsers?.users?.some(u => u.email === defaultEmail);
-    
-    if (adminExists) {
-      console.log('[INIT] ✅ Default admin user already exists');
-      return;
-    }
-    
-    console.log('[INIT] Creating default admin user...');
-    
-    // Create default admin user
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: defaultEmail,
-      password: defaultPassword,
-      user_metadata: { 
-        name: 'Administrador',
-        role: 'admin'
-      },
-      email_confirm: true
-    });
-    
-    if (error) {
-      console.error('[INIT] ❌ Error creating default admin:', error.message);
-      return;
-    }
-    
-    // Create user profile in KV store
-    const profile = {
-      id: data.user.id,
-      email: defaultEmail,
-      name: 'Administrador',
-      role: 'admin',
-      createdAt: new Date().toISOString()
-    };
-    
-    await kv.set(`user_profile:${data.user.id}`, JSON.stringify(profile));
-    
-    console.log('[INIT] ✅ Default admin user created successfully!');
-    console.log('[INIT] 📧 Email:', defaultEmail);
-    console.log('[INIT] 🔑 Password:', defaultPassword);
-    console.log('[INIT] ⚠️  Please change this password after first login!');
-    
-  } catch (error) {
-    console.error('[INIT] Error initializing default admin:', error);
-  }
-}
-
-// Initialize default admin on startup
-initializeDefaultAdmin();
+// O admin padrão automático (com senha pública conhecida) foi removido.
+// O primeiro administrador deve ser criado pela tela de login → "Cadastre-se",
+// usando o código de acesso da empresa (ADMIN_ACCESS_CODE). Nenhuma credencial
+// fica armazenada no código-fonte.
 
 // ============================================
 // AUTHENTICATION ROUTES
@@ -3342,47 +3289,6 @@ app.get("/make-server-bd42bc02/diagnostic/data", async (c) => {
   }
 });
 
-// CREATE ADMIN USER (for development)
-app.post("/make-server-bd42bc02/create-admin", async (c) => {
-  try {
-    const defaultEmail = 'admin@empresa.com';
-    const defaultPassword = 'Admin@123456';
-
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingAdmin = existingUsers?.users?.find(u => u.email === defaultEmail);
-
-    if (existingAdmin) {
-      await supabaseAdmin.auth.admin.deleteUser(existingAdmin.id);
-      await kv.del(`user_profile:${existingAdmin.id}`);
-    }
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: defaultEmail,
-      password: defaultPassword,
-      user_metadata: { name: 'Administrador', role: 'admin' },
-      email_confirm: true
-    });
-
-    if (authError) {
-      return c.json({ error: authError.message }, 400);
-    }
-
-    await kv.set(`user_profile:${authData.user.id}`, JSON.stringify({
-      id: authData.user.id,
-      email: defaultEmail,
-      name: 'Administrador',
-      role: 'admin',
-      createdAt: new Date().toISOString(),
-    }));
-
-    return c.json({ 
-      success: true,
-      credentials: { email: defaultEmail, password: defaultPassword }
-    });
-  } catch (error) {
-    return c.json({ error: String(error) }, 500);
-  }
-});
 
 // FIX USER PROFILES (diagnostic and repair endpoint)
 app.post("/make-server-bd42bc02/fix-user-profiles", async (c) => {
