@@ -56,7 +56,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'client';
+  role: 'admin' | 'operator';
   createdAt: string;
   lastLogin?: string;
 }
@@ -87,7 +87,7 @@ export default function Users() {
     name: '',
     email: '',
     password: '',
-    role: 'admin' as 'admin' | 'client',
+    role: 'operator' as 'admin' | 'operator',
   });
 
   useEffect(() => {
@@ -112,13 +112,13 @@ export default function Users() {
 
       // Show success message with breakdown
       const adminCount = (data.users || []).filter(u => u.role === 'admin').length;
-      const clientCount = (data.users || []).filter(u => u.role === 'client').length;
+      const operatorCount = (data.users || []).filter(u => u.role === 'operator').length;
 
       toast.success(
         <div>
           <p className="font-semibold">✅ {data.users?.length || 0} usuários carregados</p>
           <p className="text-xs mt-1">
-            {adminCount} administrador(es) • {clientCount} cliente(s)
+            {adminCount} administrador(es) • {operatorCount} funcionário(s)
           </p>
         </div>,
         { duration: 4000 }
@@ -260,7 +260,7 @@ export default function Users() {
       name: '',
       email: '',
       password: generateRandomPassword(),
-      role: 'admin',
+      role: 'operator',
     });
     setCreateDialogOpen(true);
   };
@@ -313,7 +313,7 @@ export default function Users() {
         name: '',
         email: '',
         password: '',
-        role: 'admin',
+        role: 'operator',
       });
       loadUsers();
     } catch (error: any) {
@@ -334,8 +334,8 @@ export default function Users() {
     switch (role) {
       case 'admin':
         return <Badge className="bg-red-600 text-white"><Shield className="h-3 w-3 mr-1" />Admin</Badge>;
-      case 'client':
-        return <Badge className="bg-green-600 text-white"><UsersIcon className="h-3 w-3 mr-1" />Cliente</Badge>;
+      case 'operator':
+        return <Badge className="bg-emerald-600 text-white"><UsersIcon className="h-3 w-3 mr-1" />Funcionário</Badge>;
       default:
         return <Badge variant="outline">{role}</Badge>;
     }
@@ -412,11 +412,11 @@ export default function Users() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Clientes</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Funcionários</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {users.filter(u => u.role === 'client').length}
+            <div className="text-2xl font-bold text-emerald-600">
+              {users.filter(u => u.role === 'operator').length}
             </div>
           </CardContent>
         </Card>
@@ -451,7 +451,7 @@ export default function Users() {
               >
                 <option value="all">Todos os tipos</option>
                 <option value="admin">Administradores</option>
-                <option value="client">Clientes</option>
+                <option value="operator">Funcionários</option>
               </select>
             </div>
           </div>
@@ -560,14 +560,6 @@ export default function Users() {
                 <p className="mt-4">
                   <span className="text-red-600 font-semibold">Esta ação não pode ser desfeita!</span>
                 </p>
-                {userToDelete?.role === 'client' && (
-                  <Alert className="mt-4 border-amber-200 bg-amber-50">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-amber-900 text-sm">
-                      <strong>Atenção:</strong> Ao excluir um cliente, todos os seus contratos e dados serão mantidos no sistema, mas ele perderá o acesso ao portal do cliente.
-                    </AlertDescription>
-                  </Alert>
-                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -671,12 +663,12 @@ export default function Users() {
                 disabled={creating}
                 className="w-full h-10 px-3 rounded-md border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
+                <option value="operator">Funcionário</option>
                 <option value="admin">Administrador</option>
-                <option value="client">Cliente</option>
               </select>
               <p className="text-xs text-gray-500">
-                {newUser.role === 'admin' && '⚠️ Terá acesso total ao sistema (gerenciar clientes, contratos e usuários)'}
-                {newUser.role === 'client' && 'Acesso apenas ao portal do cliente'}
+                {newUser.role === 'admin' && '⚠️ Acesso total ao sistema (financeiro, edição de clientes, usuários e configurações)'}
+                {newUser.role === 'operator' && 'Acesso restrito: NÃO vê o Financeiro nem edita clientes. Pode ver clientes, criar contratos e registrar cobranças.'}
               </p>
             </div>
 

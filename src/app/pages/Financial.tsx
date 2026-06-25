@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../lib/auth-context';
 
 interface Transaction {
   id: string;
@@ -48,6 +49,7 @@ interface FinancialSummary {
 }
 
 export default function Financial() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<FinancialSummary>({
@@ -80,8 +82,13 @@ export default function Financial() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    loadFinancialData();
-  }, [selectedPeriod]);
+    if (user?.role === 'admin') {
+      loadFinancialData();
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPeriod, user]);
 
   const loadFinancialData = async () => {
     setLoading(true);
@@ -250,6 +257,22 @@ export default function Financial() {
       setDeleting(false);
     }
   };
+
+  // Funcionário (não-admin) não tem acesso ao Financeiro
+  if (user?.role !== 'admin') {
+    return (
+      <div className="max-w-2xl mx-auto mt-8">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="py-8 text-center space-y-2">
+            <p className="text-red-800 font-semibold">Acesso restrito</p>
+            <p className="text-sm text-red-700">
+              A área Financeira está disponível apenas para administradores.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

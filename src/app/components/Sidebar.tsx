@@ -15,11 +15,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Clientes', href: '/clients', icon: Users },
     { name: 'Contratos', href: '/contracts', icon: FileText },
-    { name: 'Financeiro', href: '/financial', icon: DollarSign },
     { name: '📅 Cobranças', href: '/automatic-billing', icon: Calendar },
     { name: 'Whatsapp', href: '/reminders', icon:  MessageSquare},
     { name: '🔑 Alterar Senha', href: '/change-password', icon: KeyRound },
     ...(user?.role === 'admin' ? [
+      { name: 'Financeiro', href: '/financial', icon: DollarSign },
       { name: '👥 Usuários', href: '/users', icon: UserCog },
       { name: '🔒 Segurança', href: '/security', icon: Shield },
     ] : []),

@@ -12,6 +12,7 @@ import { apiCall } from '../lib/supabase';
 import { toast } from 'sonner';
 import { ArrowLeft, Save, Upload, FileText, Eye, Download, CheckCircle, Clock, Home, X, Trash2, Plus, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
 import MediaGalleryUploader from '../components/MediaGalleryUploader';
+import { useAuth } from '../lib/auth-context';
 
 interface ClientFormData {
   fullName: string;
@@ -25,6 +26,7 @@ interface ClientFormData {
   occupation: string;
   company: string;
   monthlyIncome: string;
+  paymentMethod?: string;
   status: string;
   referredByName?: string;
   referredByPhone?: string;
@@ -42,6 +44,7 @@ interface DocumentInfo {
 export default function ClientForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isEditing = !!id;
 
   const {
@@ -54,6 +57,7 @@ export default function ClientForm() {
     defaultValues: {
       status: 'active',
       lgpdConsent: false,
+      paymentMethod: 'pix',
     },
   });
 
@@ -254,6 +258,25 @@ export default function ClientForm() {
     );
   }
 
+  // Funcionário (não-admin) não pode editar o cadastro do cliente
+  if (isEditing && user?.role !== 'admin') {
+    return (
+      <div className="max-w-2xl mx-auto mt-8">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="py-8 text-center space-y-3">
+            <p className="text-red-800 font-semibold">Acesso restrito</p>
+            <p className="text-sm text-red-700">
+              Apenas administradores podem editar o cadastro de um cliente.
+            </p>
+            <Button variant="outline" onClick={() => navigate(`/clients/${id}`)}>
+              Voltar para o cliente
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
@@ -442,6 +465,22 @@ export default function ClientForm() {
                   <SelectContent>
                     <SelectItem value="active">Ativo</SelectItem>
                     <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="paymentMethod">Forma de Pagamento</Label>
+                <Select
+                  value={watch('paymentMethod') || 'pix'}
+                  onValueChange={(value) => setValue('paymentMethod', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">💠 Pix</SelectItem>
+                    <SelectItem value="dinheiro">💵 Dinheiro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -22,6 +22,7 @@ interface RegistrationFormData {
   occupation: string;
   company: string;
   monthlyIncome: string;
+  paymentMethod: 'pix' | 'dinheiro';
   referredByName?: string;
   referredByPhone?: string;
   lgpdConsent: boolean;
@@ -95,7 +96,7 @@ export default function PublicRegistration() {
     watch,
     formState: { errors },
   } = useForm<RegistrationFormData>({
-    defaultValues: { lgpdConsent: false },
+    defaultValues: { lgpdConsent: false, paymentMethod: 'pix' },
   });
 
   const [loading, setLoading] = useState(false);
@@ -110,6 +111,7 @@ export default function PublicRegistration() {
   });
 
   const lgpdConsent = watch('lgpdConsent');
+  const paymentMethod = watch('paymentMethod');
 
   const setDocument = (type: DocumentType) => (file: File, preview: string) => {
     setDocuments((prev) => ({ ...prev, [type]: { file, preview } }));
@@ -152,6 +154,7 @@ export default function PublicRegistration() {
         occupation: data.occupation,
         company: data.company,
         monthlyIncome: data.monthlyIncome,
+        paymentMethod: data.paymentMethod,
         referredBy: data.referredByName
           ? { name: data.referredByName, phone: data.referredByPhone || '' }
           : null,
@@ -372,6 +375,34 @@ export default function PublicRegistration() {
                   {errors.monthlyIncome && (
                     <p className="text-sm text-red-600">{errors.monthlyIncome.message}</p>
                   )}
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Como você prefere pagar? *</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setValue('paymentMethod', 'pix')}
+                      className={`rounded-xl border-2 p-3 text-center font-medium transition-colors ${
+                        paymentMethod === 'pix'
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      💠 Pix
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setValue('paymentMethod', 'dinheiro')}
+                      className={`rounded-xl border-2 p-3 text-center font-medium transition-colors ${
+                        paymentMethod === 'dinheiro'
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      💵 Dinheiro
+                    </button>
+                  </div>
                 </div>
               </div>
             </CardContent>

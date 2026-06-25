@@ -6,10 +6,12 @@ import { Badge } from '../components/ui/badge';
 import { apiCall } from '../lib/supabase';
 import { ArrowLeft, Edit, Phone, Mail, MapPin, Briefcase, DollarSign, FileText, Home, RefreshCw, AlertCircle, User } from 'lucide-react';
 import { MediaDebug } from '../components/MediaDebug';
+import { useAuth } from '../lib/auth-context';
 
 export default function ClientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshingDocs, setRefreshingDocs] = useState(false);
@@ -156,12 +158,14 @@ export default function ClientDetails() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link to={`/clients/${id}/edit`}>
-            <Button className="gap-2">
-              <Edit className="h-4 w-4" />
-              Editar
-            </Button>
-          </Link>
+          {user?.role === 'admin' && (
+            <Link to={`/clients/${id}/edit`}>
+              <Button className="gap-2">
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
+            </Link>
+          )}
           <Link to={`/contracts/new?clientId=${id}`}>
             <Button variant="outline" className="gap-2">
               <FileText className="h-4 w-4" />
@@ -257,6 +261,19 @@ export default function ClientDetails() {
               <div>
                 <p className="text-sm text-gray-600">Renda Mensal</p>
                 <p className="font-medium">{client.monthlyIncome || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-gray-400" />
+              <div>
+                <p className="text-sm text-gray-600">Forma de Pagamento</p>
+                <p className="font-medium">
+                  {client.paymentMethod === 'pix'
+                    ? '💠 Pix'
+                    : client.paymentMethod === 'dinheiro'
+                    ? '💵 Dinheiro'
+                    : '-'}
+                </p>
               </div>
             </div>
           </CardContent>

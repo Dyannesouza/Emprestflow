@@ -950,7 +950,7 @@ app.get("/make-server-bd42bc02/clients/:id", requireAuth, async (c) => {
 });
 
 // Update client
-app.put("/make-server-bd42bc02/clients/:id", requireAuth, async (c) => {
+app.put("/make-server-bd42bc02/clients/:id", requireAuth, requireAdmin, async (c) => {
   try {
     const user = c.get('user');
     const clientId = c.req.param('id');
@@ -2359,6 +2359,7 @@ app.post("/make-server-bd42bc02/public/register", async (c) => {
       occupation,
       company,
       monthlyIncome,
+      paymentMethod,
       referredBy,
       lgpdConsent,
     } = body;
@@ -2412,6 +2413,7 @@ app.post("/make-server-bd42bc02/public/register", async (c) => {
       occupation,
       company: company || '',
       monthlyIncome: monthlyIncome || '',
+      paymentMethod: paymentMethod || '',
       status: 'active',
       referredBy: referredBy && referredBy.name ? referredBy : null,
       source: 'public_form',
@@ -3424,7 +3426,7 @@ app.post("/make-server-bd42bc02/fix-user-profiles", async (c) => {
 // ============================================
 
 // Get all transactions with summary
-app.get("/make-server-bd42bc02/financial", requireAuth, async (c) => {
+app.get("/make-server-bd42bc02/financial", requireAuth, requireAdmin, async (c) => {
   try {
     const period = c.req.query('period') || 'current-month';
     
@@ -3497,7 +3499,7 @@ app.get("/make-server-bd42bc02/financial", requireAuth, async (c) => {
 });
 
 // Create transaction
-app.post("/make-server-bd42bc02/financial/transactions", requireAuth, async (c) => {
+app.post("/make-server-bd42bc02/financial/transactions", requireAuth, requireAdmin, async (c) => {
   try {
     const user = c.get('user');
     const body = await c.req.json();
@@ -3576,7 +3578,7 @@ app.post("/make-server-bd42bc02/financial/transactions", requireAuth, async (c) 
 });
 
 // Get single transaction
-app.get("/make-server-bd42bc02/financial/transactions/:id", requireAuth, async (c) => {
+app.get("/make-server-bd42bc02/financial/transactions/:id", requireAuth, requireAdmin, async (c) => {
   try {
     const id = c.req.param('id');
     const transactionData = await kv.get(`transaction:${id}`);
@@ -3604,7 +3606,7 @@ app.get("/make-server-bd42bc02/financial/transactions/:id", requireAuth, async (
 });
 
 // Update transaction
-app.put("/make-server-bd42bc02/financial/transactions/:id", requireAuth, async (c) => {
+app.put("/make-server-bd42bc02/financial/transactions/:id", requireAuth, requireAdmin, async (c) => {
   try {
     const user = c.get('user');
     const id = c.req.param('id');
@@ -3661,7 +3663,7 @@ app.put("/make-server-bd42bc02/financial/transactions/:id", requireAuth, async (
 });
 
 // Delete transaction
-app.delete("/make-server-bd42bc02/financial/transactions/:id", requireAuth, async (c) => {
+app.delete("/make-server-bd42bc02/financial/transactions/:id", requireAuth, requireAdmin, async (c) => {
   try {
     const user = c.get('user');
     const id = c.req.param('id');
