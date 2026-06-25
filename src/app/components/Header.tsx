@@ -1,7 +1,8 @@
-import { LogOut, Bell, Menu } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -41,9 +42,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="icon" className="hidden md:flex">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationBell />
           <Button variant="outline" onClick={handleSignOut} className="gap-2">
             <LogOut className="h-4 w-4" />
             <span className="hidden md:inline">Sair</span>

@@ -2436,6 +2436,17 @@ app.post("/make-server-bd42bc02/public/register", async (c) => {
       metadata: { clientName: fullName, cpfCnpj }
     });
 
+    // Notificação para o painel do administrador
+    const notifId = `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    await kv.set(`admin_notif:${notifId}`, JSON.stringify({
+      id: notifId,
+      type: 'new_registration',
+      clientId,
+      clientName: fullName,
+      createdAt: new Date().toISOString(),
+      read: false,
+    }));
+
     console.log('[PUBLIC_REGISTER] ✅ Client created:', clientId);
 
     return c.json({ success: true, clientId, uploadToken });
@@ -2542,10 +2553,46 @@ app.post("/make-server-bd42bc02/public/register/:id/documents", async (c) => {
   }
 });
 
+// ============================================
+// ADMIN NOTIFICATIONS (avisos no painel)
+// ============================================
+
+// Listar notificações do administrador
+app.get("/make-server-bd42bc02/admin/notifications", requireAuth, async (c) => {
+  try {
+    const raw = await kv.getByPrefix('admin_notif:');
+    const notifs = raw.map((v: any) => (typeof v === 'string' ? JSON.parse(v) : v));
+    notifs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const unread = notifs.filter((n: any) => !n.read).length;
+    return c.json({ notifications: notifs.slice(0, 50), unread });
+  } catch (error) {
+    console.error('[ADMIN_NOTIF] Error:', error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
+// Marcar todas as notificações como lidas
+app.post("/make-server-bd42bc02/admin/notifications/read", requireAuth, async (c) => {
+  try {
+    const raw = await kv.getByPrefix('admin_notif:');
+    const notifs = raw.map((v: any) => (typeof v === 'string' ? JSON.parse(v) : v));
+    for (const n of notifs) {
+      if (!n.read && n.id) {
+        n.read = true;
+        await kv.set(`admin_notif:${n.id}`, JSON.stringify(n));
+      }
+    }
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('[ADMIN_NOTIF] Error:', error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
 // Public test endpoint - completely open, no auth
 app.get("/make-server-bd42bc02/public-test", (c) => {
   console.log('[PUBLIC_TEST] Public test endpoint called');
-  return c.json({ 
+  return c.json({
     status: "ok", 
     message: "Public endpoint working - no authentication required",
     timestamp: new Date().toISOString(),
